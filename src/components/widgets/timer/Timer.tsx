@@ -17,7 +17,8 @@ export enum Modes {
     reset,
     restart,
     start,
-    pause
+    pause,
+    getTime
 }
 
 export default class Timer extends React.Component<IProps, IState> {

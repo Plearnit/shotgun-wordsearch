@@ -71,6 +71,13 @@ code {
   color: rgba(255, 255, 255, .8);
 }
 
+#the-word {
+  height: 75px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 3em;
+}
+
 @media only screen and (min-width: 768px) {
   .cell {
     font-size: 1.8em;

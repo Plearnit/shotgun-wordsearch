@@ -16,7 +16,8 @@ interface IState {
     selectedCellStartPoint: Point,
     highlightedCells: Point[],
     word: string,
-    mode: GameModes
+    mode: GameModes,
+    map: Array<string[]>
 }
 
 export enum WordDirections {
@@ -33,7 +34,6 @@ export enum WordDirections {
 
 export default class Grid extends React.Component<IProps, IState> {
 
-    private map: Array<string[]> = [];
     private wordLocation: {start: Point, end:Point} = {start: new Point(), end: new Point()};
     private bell: UIfx = new UIfx(bellAudio);
     private buzz: UIfx = new UIfx(buzzAudio);
@@ -46,10 +46,9 @@ export default class Grid extends React.Component<IProps, IState> {
             selectedCellStartPoint: new Point(),
             highlightedCells: [],
             word: "",
-            mode: GameModes.idle
+            mode: GameModes.idle,
+            map: []
         }
-
-        this.map = this.buildGridMap(this.state.word, this.allowedDirections[Math.floor(Math.random() * 3)], this.props.size);
     }
 
     render() {
@@ -58,7 +57,7 @@ export default class Grid extends React.Component<IProps, IState> {
         return(
             <div className="booger" id="grid">
                 { 
-                    this.map.map( (row: string[], y: number) => {
+                    this.state.map.map( (row: string[], y: number) => {
                         return(
                             <div className="grid-row" key={`row_${y}`}>{
                                 row.map((letter: string, x: number) => {
@@ -102,7 +101,9 @@ export default class Grid extends React.Component<IProps, IState> {
 
     componentDidMount = () => {
         this.props.updateMode(this.updateMode);
+        this.buildGridMap();
     }
+
 
     private updateMode = (modeUpdate: GameModeUpdate): void => {
         switch(modeUpdate.mode) {
@@ -110,13 +111,13 @@ export default class Grid extends React.Component<IProps, IState> {
                 break;
 
             case GameModes.presentWord:
-                this.map = this.buildGridMap(modeUpdate.payload.word, this.allowedDirections[Math.floor(Math.random() * 3)], this.props.size);
                 this.setState({
                     mode: modeUpdate.mode,
                     word: modeUpdate.payload.word,
                     highlightedCells: [],
                     selectedCellStartPoint: new Point()
                 });
+                this.buildGridMap();
                 break;
 
             case GameModes.pause:
@@ -124,6 +125,13 @@ export default class Grid extends React.Component<IProps, IState> {
 
             case GameModes.reveal:
                 this.revealWord();
+                break;
+
+            case GameModes.getReady:
+                this.setState({
+                    mode: GameModes.getReady,
+                    word: ""
+                }, this.buildGridMap);
                 break;
         } 
     }
@@ -156,13 +164,16 @@ export default class Grid extends React.Component<IProps, IState> {
             return;
         } else if (this.state.selectedCellStartPoint.x === point.x && this.state.selectedCellStartPoint.y === point.y) {
             return;
+        } else if (this.state.selectedCellStartPoint.getDirectionToward(point) === WordDirections.noDirection) {
+            this.buzz.play();
+            this.clearSelectedCells();
         }
 
         let selectedPoints: Point[] = this.extractSelectedCells(this.state.selectedCellStartPoint, point);
         this.setState({highlightedCells: selectedPoints});
 
         let selectedWord: string = "";
-        selectedPoints.forEach((point: Point) => selectedWord += this.map[point.y][point.x])
+        selectedPoints.forEach((point: Point) => selectedWord += this.state.map[point.y][point.x])
         console.log(this.state)
         if (selectedWord === this.state.word.toUpperCase()) {
             this.bell.play();
@@ -206,52 +217,63 @@ export default class Grid extends React.Component<IProps, IState> {
         return selectedLetters;
     }
 
-    private buildGridMap = (word: string, direction: WordDirections, size: number): string[][] => {
+    private buildGridMap = (direction?: WordDirections): void => {
+        direction = direction? direction : this.allowedDirections[Math.floor(Math.random() * this.allowedDirections.length)];
+
+        let displayLetters: boolean = this.state.mode === GameModes.reveal || this.state.mode === GameModes.presentWord ? true : false;
+
         let map: Array<string[]> = [];
         let row: Array<string>;
-        let startX: number = Math.floor(Math.random() * Math.floor(size));
-        let startY: number = Math.floor(Math.random() * Math.floor(size));
+        let startX: number = Math.floor(Math.random() * Math.floor(this.props.size));
+        let startY: number = Math.floor(Math.random() * Math.floor(this.props.size));
         let moveX: number = 0;
         let moveY: number = 0;
         
         // prefill map with random letters
-        for (let y = 0; y < size; y ++) {
+        for (let y = 0; y < this.props.size; y ++) {
             row = [];
-            for (let x = 0; x < size; x ++) {
-                //row.push(String.fromCharCode(Math.floor(Math.random() * 26) + 65));
-                row.push(".");
+            for (let x = 0; x < this.props.size; x ++) {
+                if (displayLetters) {
+                    row.push(String.fromCharCode(Math.floor(Math.random() * 26) + 65));
+                    //row.push(".");
+                } else {
+                    row.push("");
+                }
             }
             map.push(row);
         } 
 
-        //find a starting point for the word.
-        switch(direction) {
-            case WordDirections.E:
-                startX = Math.floor(Math.random() * Math.floor(size - word.length));
-                moveX = 1;
-            break;
-            case WordDirections.SE:
-                startX = Math.floor(Math.random() * Math.floor(size - word.length));
-                startY = Math.floor(Math.random() * Math.floor(size - word.length));
-                moveX = moveY = 1;
-            break;
-            case WordDirections.S:
-                startY = Math.floor(Math.random() * Math.floor(size - word.length));
-                moveY = 1;
-            break;
+        if (displayLetters){
+            //find a starting point for the word.
+            switch(direction) {
+                case WordDirections.E:
+                    startX = Math.floor(Math.random() * Math.floor(this.props.size - this.state.word.length));
+                    moveX = 1;
+                break;
+                case WordDirections.SE:
+                    startX = Math.floor(Math.random() * Math.floor(this.props.size - this.state.word.length));
+                    startY = Math.floor(Math.random() * Math.floor(this.props.size - this.state.word.length));
+                    moveX = moveY = 1;
+                break;
+                case WordDirections.S:
+                    startY = Math.floor(Math.random() * Math.floor(this.props.size - this.state.word.length));
+                    moveY = 1;
+                break;
+            }
+
+            this.wordLocation.start = new Point(startY, startX);
+
+            // write the word.
+            for(let y = 0 ; y < this.state.word.length; y ++ ){
+                map[startY][startX] = this.state.word.charAt(y).toUpperCase();
+                startX += moveX;
+                startY += moveY;
+            }
+
+            this.wordLocation.end = new Point(startY, startX);
         }
-
-        this.wordLocation.start = new Point(startY, startX);
-
-        // write the word.
-        for(let y = 0 ; y < word.length; y ++ ){
-            map[startY][startX] = word.charAt(y).toUpperCase();
-            startX += moveX;
-            startY += moveY;
-        }
-
-        this.wordLocation.end = new Point(startY, startX);
-        return map;
+    
+        this.setState({map});
     }
 }
 
