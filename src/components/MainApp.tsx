@@ -1,24 +1,26 @@
-import React, { Fragment } from 'react';
+import React from 'react';
 
 import Grid from './grid/Grid';
 import Timer, { Modes as TimerModes } from './widgets/timer/Timer';
 
+import GameModeUpdate, { GameModes } from '../GameModes';
+
 interface IState {
-    active: boolean,
-    word: string,
+    mode: GameModes,
     score: number
 }
 
 export default class MainApp extends React.Component<any, IState> {
 
-    private setTimerMode: any;
+    private updateTimerMode: any;
+    private updateGridMode: any;
+    private wordList: string[] = ["wordone", "wordtwo", "wordthree", "wordfour", "wordfive"];
 
     constructor(props: any) {
         super(props);
 
         this.state = {
-            active: false,
-            word: "",
+            mode: GameModes.idle,
             score: 0
         }
     }
@@ -35,9 +37,10 @@ export default class MainApp extends React.Component<any, IState> {
                                     {this.state.score}
                                 </div>
                                 <div className="col-6" id="timer">
-                                    <Timer 
+                                    <Timer
+                                        time={5}
                                         onExpired={this.onTimerExpired} 
-                                        setMode={click => this.setTimerMode = click}
+                                        setMode={click => this.updateTimerMode = click}
                                         />
                                 </div>
                             </div>
@@ -46,10 +49,9 @@ export default class MainApp extends React.Component<any, IState> {
                     <div className="row">  
                         <div className="col-12 text-center">
                             <Grid 
-                                word={this.state.word} 
                                 size={10} 
                                 onWordFound={this.onWordFound}
-                                active={this.state.active}
+                                updateMode={click => this.updateGridMode = click}
                                 />
                         </div>
                     </div>
@@ -57,7 +59,7 @@ export default class MainApp extends React.Component<any, IState> {
                         <div className="col-12 text-center">
                             <button
                             className="btn btn-success"
-                            disabled={this.state.active}
+                            disabled={this.state.mode === GameModes.presentWord}
                             onClick={() => this.giveWord()}
                             >Next Word</button>
                         </div>
@@ -69,21 +71,30 @@ export default class MainApp extends React.Component<any, IState> {
     }
 
     private giveWord = (): void => {
-        this.setState({
-            word: "test" + String.fromCharCode(Math.floor(Math.random() * 26) + 65),
-            active: true
-        });
-        this.setTimerMode(TimerModes.start, 20);
+        if (this.wordList.length > 0) {
+            this.updateMode(
+                new GameModeUpdate(GameModes.presentWord, {
+                    word: this.wordList.pop(),
+                    time: 5
+                })
+            )
+        }  
     }
 
     private onWordFound = (): void => {
-        this.setState({active: false});
-        let remainingTime:number = this.setTimerMode(TimerModes.pause);
-
+        this.updateMode(new GameModeUpdate(GameModes.pause));
     }
 
     private onTimerExpired = (): void => {
-        this.setState({active: false});
-        console.log("timer expired")
+        this.updateMode(new GameModeUpdate(GameModes.reveal));
     }
-} 
+
+    private updateMode = (newMode: GameModeUpdate) => {
+        this.updateGridMode(newMode);
+
+        let timerMode: TimerModes = newMode.mode === GameModes.presentWord? TimerModes.restart : TimerModes.pause;
+        this.updateTimerMode(timerMode);
+
+        this.setState({mode: newMode.mode})
+    }
+}

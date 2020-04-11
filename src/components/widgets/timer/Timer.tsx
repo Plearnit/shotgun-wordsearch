@@ -3,6 +3,7 @@ import React from 'react';
 import './timer.css';
 
 interface IProps {
+    time: number,
     onExpired(): void,
     setMode(click: any): void
 }
@@ -12,7 +13,9 @@ interface IState {
 }
 
 export enum Modes {
+    idle,
     reset,
+    restart,
     start,
     pause
 }
@@ -47,27 +50,24 @@ export default class Timer extends React.Component<IProps, IState> {
     }
 
     private setMode = (mode: Modes, time:number = -1): number => {
+        clearInterval(this.clock);
+
         switch(mode) {
             case Modes.start:
-                clearInterval(this.clock);
-                this.clock = window.setInterval(this.onInterval, 1000);
-                this.setState({
-                    time: time === -1 ? this.state.time : time
-                })
+                this.startClock();
                 break;
 
             case Modes.pause:
-                clearInterval(this.clock);
                 break;
 
             case Modes.reset:
-                clearInterval(this.clock);
-                this.setState({
-                    time: time === -1 ? 0 : time
-                })
+                this.setState({time: this.props.time})
+                break;
+
+            case Modes.restart:
+                this.startClock(this.props.time);
                 break;
         }
-
         return this.state.time;
     }
 
@@ -78,5 +78,10 @@ export default class Timer extends React.Component<IProps, IState> {
             clearInterval(this.clock);
             this.props.onExpired();
         }
+    }
+
+    private startClock = (time: number = this.state.time) => {
+        this.setState({time: time});
+        this.clock = window.setInterval(this.onInterval, 1000);
     }
 }

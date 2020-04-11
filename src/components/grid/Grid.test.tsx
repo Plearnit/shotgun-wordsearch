@@ -2,7 +2,8 @@ import React from 'react';
 import {shallow, configure, mount} from 'enzyme';
 import Adapter from 'enzyme-adapter-react-16';
 
-import Grid, {Point, WordDirections} from './Grid';
+import Grid, { Point, WordDirections } from './Grid';
+import GameModeUpdate, { GameModes } from '../../GameModes'
 
 configure({adapter: new Adapter()});
 
@@ -12,12 +13,13 @@ describe('Grid tests', () => {
     let map: Array<string[]>;
     let size: number = 15;
     let onWordFound = (): void => { console.log("found")}
+    let updateGridMode: any;
 
     describe('Grid map building', () => {
 
         beforeAll(() => {
             word = "abcd";
-            component = shallow(<Grid word = {word} size = {size} onWordFound={onWordFound} />);
+            component = shallow(<Grid size = {size} onWordFound={onWordFound} updateMode={click => updateGridMode = click} />);
         });
 
         it('should build the correct size grid', () => {
@@ -69,7 +71,7 @@ describe('Grid tests', () => {
 
         beforeAll(() => {
             word = "abcd";
-            component = mount(<Grid word = {word} size = {size} onWordFound={onWordFound} />);
+            component = mount(<Grid size={size} onWordFound={onWordFound} updateMode={click => updateGridMode = click} />);
         });
 
         it('should respond if word is incorrect', () => {
@@ -77,20 +79,17 @@ describe('Grid tests', () => {
             expect(compareSelectedWordToTargetWord(word, selectedCells, component.instance().map)).toEqual(false);
         });
 
-        it('should respond incorrect if selected letters do not fall in a line', () => {
-            let selectedCells: Point[] = component.instance().extractSelectedCells(new Point(0,0), new Point(10,5));
-            expect(compareSelectedWordToTargetWord(word, selectedCells, component.instance().map)).toEqual(false);
-        })
-
         it('should respond if word is correct', () => {
+            updateGridMode(new GameModeUpdate(GameModes.presentWord, word));
             let wordLocation: FindWordInMapResponse = findWordInMap(word, component.instance().map);
+            //console.log(wordLocation, component.instance().map);
             let selectedCells: Point[] = component.instance().extractSelectedCells(wordLocation.start, wordLocation.end);
             expect(compareSelectedWordToTargetWord(word, selectedCells, component.instance().map)).toEqual(true);
         });
 
         it('should light up first letter clicked', () => {
-            component = mount(<Grid word = {word} size = {size} onWordFound={onWordFound} />);
-            component.instance().onLetterClicked(new Point(5,5));
+            component = mount(<Grid size = {size} onWordFound={onWordFound} updateMode={click => updateGridMode = click}/>); 
+            component.instance().onCellClicked(new Point(5,5));
             //console.log(component.find("#cell_0:0").first());
         });
 
@@ -124,7 +123,7 @@ describe('Grid tests', () => {
             expect(valid).toEqual(true);
             */
         });
-    })
+    }) 
 })
 
 const compareSelectedWordToTargetWord = (targetWord: string, selectedCells: Point[], map: Array<string[]>): boolean => {    
