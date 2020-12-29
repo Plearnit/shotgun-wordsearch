@@ -1,17 +1,19 @@
 import React from 'react';
+// import { Plearnit } from 'plearnit-connector';
 
 import Grid from './grid/Grid';
 import Timer, { Modes as TimerModes } from './widgets/timer/Timer';
-
 import GameModeUpdate, { GameModes } from '../GameModes';
 
-interface IState {
+import {config} from '../config';
+
+interface State {
     mode: GameModes,
     score: number,
     word: string
 }
 
-export default class MainApp extends React.Component<any, IState> {
+export default class MainApp extends React.Component<any, State> {
 
     private updateTimerMode: any;
     private updateGridMode: any;
@@ -87,11 +89,9 @@ export default class MainApp extends React.Component<any, IState> {
         ) 
     }
 
-    private startGame = () => {
-        this.updateMode(new GameModeUpdate(GameModes.reset));
-        this.setState({word: "", score: 0})
-        this.wordList = ["elephant", "giraffe", "zebra", "tiger", "wolf"]
-        this.getReady();
+    public componentDidMount = () => {
+        //Plearnit.addEventListener(Plearnit.events.ACTION_RECEIVED, this.onActionReceived);
+        //Plearnit.connect(config.API_URL);
     }
 
     private getReady = (): void => {
@@ -116,6 +116,10 @@ export default class MainApp extends React.Component<any, IState> {
         this.updateMode(new GameModeUpdate(GameModes.gameOver));
     }
 
+    private onActionReceived = (action: string, payload: any ): void => {
+
+    }
+
     private onWordFound = (): void => {
         this.updateMode(new GameModeUpdate(GameModes.pause));
 
@@ -133,6 +137,13 @@ export default class MainApp extends React.Component<any, IState> {
     private onTimerExpired = (): void => {
         this.updateMode(new GameModeUpdate(GameModes.reveal));
         window.setTimeout(this.getReady, 3000);
+    }
+
+    private startGame = () => {
+        this.updateMode(new GameModeUpdate(GameModes.reset));
+        this.setState({word: "", score: 0})
+        this.wordList = ["elephant", "giraffe", "zebra", "tiger", "wolf"]
+        this.getReady();
     }
 
     private updateMode = (newMode: GameModeUpdate) => {
