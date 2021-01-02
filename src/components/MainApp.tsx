@@ -1,34 +1,105 @@
 import React from 'react';
-// import { Plearnit } from 'plearnit-connector';
+import UIfx from 'uifx';
+import PlearnitService, {PlearnitEvents} from '../plearnit_service/PlearnitService';
 
-import Grid from './grid/Grid';
-import Timer, { Modes as TimerModes } from './widgets/timer/Timer';
-import GameModeUpdate, { GameModes } from '../GameModes';
+import {Grid} from './grid/Grid';
+import {Timer} from './widgets/timer/Timer';
+import {GameModes} from '../constants';
+import VocabEntry from "../plearnit_service/models/VocabEntry";
+import RoundQuestion from "../plearnit_service/models/RoundQuestion";
+import {WordDirections} from "./grid/OldGrid";
+import Player from "../plearnit_service/models/Player";
 
-import {config} from '../config';
+const bellAudio = require("../assets/correctBell.mp3");
+const buzzAudio = require("../assets/wrong1.mp3");
 
 interface State {
     mode: GameModes,
-    score: number,
-    word: string
+    roundQuestion: RoundQuestion | null,
+    vocabEntry: VocabEntry,
+    player: Player
 }
 
 export default class MainApp extends React.Component<any, State> {
 
-    private updateTimerMode: any;
-    private updateGridMode: any;
-    private wordList: string[] = [];
     private time: number = 15;
     private maxPoints: number = 20;
+    private timeRemaining: number = 0;
+    private bell: UIfx = new UIfx(bellAudio);
+    private buzz: UIfx = new UIfx(buzzAudio);
 
     constructor(props: any) {
         super(props);
 
         this.state = {
             mode: GameModes.idle,
-            score: 0,
-            word: ""
+            roundQuestion: new RoundQuestion(),
+            vocabEntry: new VocabEntry(),
+            player: PlearnitService.player
         }
+    }
+
+    public componentDidMount(){
+        PlearnitService.events.addEventListener(PlearnitEvents.PLAYER_UPDATED, (evt: any) => this.setState({player: evt.detail as Player}))
+    }
+
+    private getReady = (): void => {
+        if (PlearnitService.questionIndex !== PlearnitService.round.questions.length) {
+            this.updateMode(GameModes.getReady);
+            window.setTimeout(this.giveWord, 3000);
+        } else {
+            this.gameOver();
+        } 
+    }
+
+    private giveWord = (): void => {
+        let roundQuestion: RoundQuestion | null = PlearnitService.getNextQuestion();
+
+        this.setState({
+            mode: GameModes.presentWord,
+            roundQuestion: roundQuestion,
+            vocabEntry: roundQuestion?.content_object as VocabEntry
+        })
+        // this.updateMode(new GameModeUpdate(GameModes.presentWord, {word}) );
+    }
+
+    private gameOver = (): void => {
+        this.updateMode(GameModes.gameOver);
+        PlearnitService.completeRound();
+    }
+
+    private onWordFound = (): void => {
+        this.updateMode(GameModes.showCorrectWord);
+
+        let points: number = Math.floor(this.maxPoints * (this.timeRemaining / this.time));
+
+        PlearnitService.submitAnswer(this.state.vocabEntry.response_text, points, this.state.roundQuestion || new RoundQuestion());
+
+        this.bell.play();
+
+        window.setTimeout(this.getReady, 3000);
+    }
+
+    private startGame = () => {
+        this.updateMode(GameModes.getReady);
+
+        PlearnitService.loadRound()
+            .then(() => {
+                this.getReady();
+            })
+            .catch( err => window.alert('unable to load game'))
+    }
+
+    private updateMode = (newMode: GameModes) => {
+        switch(newMode) {
+            case GameModes.reveal:
+                window.setTimeout(this.getReady, 3000);
+                break;
+
+        }
+        this.setState({
+            mode: newMode,
+        });
     }
 
     render() {
@@ -38,7 +109,7 @@ export default class MainApp extends React.Component<any, State> {
                                 disabled={this.state.mode === GameModes.pause || this.state.mode === GameModes.reveal || this.state.mode === GameModes.getReady}
                                 >Pause</button>
 
-        if (this.state.mode === GameModes.idle || this.state.mode === GameModes.gameOver) { 
+        if (this.state.mode === GameModes.idle || this.state.mode === GameModes.gameOver) {
             playButton =    <button
                                 className="btn btn-success"
                                 onClick={() => this.startGame()}
@@ -52,29 +123,45 @@ export default class MainApp extends React.Component<any, State> {
                         <div className="col-12 hr-spacing-10" id="score-board">
                             <div className="row">
                                 <div className="col-6" id="score">
-                                    {this.state.score}
+                                    {this.state.player.total_score}
                                 </div>
                                 <div className="col-6" id="timer">
                                     <Timer
                                         time={this.time}
-                                        onExpired={this.onTimerExpired} 
-                                        setMode={click => this.updateTimerMode = click}
+                                        mode={this.state.mode}
+                                        timeRemaining={(time: number) => {
+                                            this.timeRemaining = time;
+                                            if (time === 0) {
+                                                this.buzz.play();
+                                                PlearnitService.submitAnswer('3432234', 0, this.state.roundQuestion || new RoundQuestion());
+                                                this.updateMode(GameModes.reveal);
+                                            }
+                                        }}
                                         />
                                 </div>
                             </div>
-                        </div> 
+                        </div>
                     </div>
                     <div className="row justify-content-center">
                         <div className="col-6" id="the-word">
-                            {this.state.word}
+                            {
+                                this.state.mode === GameModes.getReady ?
+                                    'Get Ready!':
+                                    this.state.mode === GameModes.presentWord ?
+                                        this.state.vocabEntry.prompt_text
+                                        :
+                                        ''
+                            }
                         </div>
                     </div>
-                    <div className="row">  
+                    <div className="row">
                         <div className="col-12 text-center">
-                            <Grid 
-                                size={10} 
-                                onWordFound={this.onWordFound}
-                                updateMode={click => this.updateGridMode = click}
+                            <Grid
+                                mode={this.state.mode}
+                                word={this.state.vocabEntry.response_text}
+                                wordFound={this.onWordFound}
+                                size={10}
+                                allowedDirections={[WordDirections.E, WordDirections.SE, WordDirections.S]}
                                 />
                         </div>
                     </div>
@@ -84,84 +171,8 @@ export default class MainApp extends React.Component<any, State> {
                         </div>
                     </div>
                     </div>
-                </div> 
+                </div>
             </div>
-        ) 
-    }
-
-    public componentDidMount = () => {
-        //Plearnit.addEventListener(Plearnit.events.ACTION_RECEIVED, this.onActionReceived);
-        //Plearnit.connect(config.API_URL);
-    }
-
-    private getReady = (): void => {
-        if (this.wordList.length > 0) {
-            this.updateMode(new GameModeUpdate(GameModes.getReady));
-            window.setTimeout(this.giveWord, 3000);
-        } else {
-            this.gameOver();
-        } 
-    }
-
-    private giveWord = (): void => {
-        let word: string | undefined = this.wordList.pop();
-
-        if(word) {
-            this.setState({word})
-            this.updateMode(new GameModeUpdate(GameModes.presentWord, {word}) );
-        } 
-    }
-
-    private gameOver = (): void => {
-        this.updateMode(new GameModeUpdate(GameModes.gameOver));
-    }
-
-    private onActionReceived = (action: string, payload: any ): void => {
-
-    }
-
-    private onWordFound = (): void => {
-        this.updateMode(new GameModeUpdate(GameModes.pause));
-
-        let timeRemaining: number = this.updateTimerMode(TimerModes.getTime);
-        let points: number = Math.floor(this.maxPoints * (timeRemaining / this.time));
-
-        this.setState({
-            score: this.state.score + points,
-            word: `+${points} points!`
-        });
-
-        window.setTimeout(this.getReady, 3000);
-    }
-
-    private onTimerExpired = (): void => {
-        this.updateMode(new GameModeUpdate(GameModes.reveal));
-        window.setTimeout(this.getReady, 3000);
-    }
-
-    private startGame = () => {
-        this.updateMode(new GameModeUpdate(GameModes.reset));
-        this.setState({word: "", score: 0})
-        this.wordList = ["elephant", "giraffe", "zebra", "tiger", "wolf"]
-        this.getReady();
-    }
-
-    private updateMode = (newMode: GameModeUpdate) => {
-        this.updateGridMode(newMode);
-
-        let timerMode: TimerModes = TimerModes.pause;
-        switch(newMode.mode) {
-            case GameModes.presentWord: timerMode = TimerModes.restart; break;
-            case GameModes.reset: timerMode = TimerModes.reset;
-        }
-        this.updateTimerMode(timerMode);
-
-        let word: string = this.state.word;
-        if (newMode.mode === GameModes.getReady) word = "Get Ready!"
-
-        this.setState({
-            mode: newMode.mode,
-            word
-        });
+        )
     }
 }

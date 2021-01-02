@@ -5,7 +5,7 @@ export enum GameModes {
     reveal,
     gameOver,
     getReady,
-    reset
+    showCorrectWord
 }
 
 export default class GameModeUpdate {

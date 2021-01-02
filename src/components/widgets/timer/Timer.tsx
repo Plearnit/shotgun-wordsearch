@@ -1,88 +1,63 @@
-import React from 'react';
+import React, {useRef, useState} from 'react';
 
 import './timer.css';
+import {GameModes} from "../../../constants";
 
-interface IProps {
+interface Props {
+    mode: GameModes,
     time: number,
-    onExpired(): void,
-    setMode(click: any): void
+    timeRemaining: (time: number) => void
 }
 
-interface IState {
-    time: number
-}
+export const Timer = (props: Props): React.ReactElement => {
 
-export enum Modes {
-    idle,
-    reset,
-    restart,
-    start,
-    pause,
-    getTime
-}
+    let clock: number = 0;
 
-export default class Timer extends React.Component<IProps, IState> {
+    const [time, setTime] = useState(0);
 
-    private clock: number = 0;
+    const countRef = useRef<number>(time);
+    countRef.current = time;
 
-    constructor(props: IProps) {
-        super(props);
+    React.useEffect(() => {
+        switch(props.mode) {
+            case GameModes.idle:
+                clearInterval(clock);
+                break;
 
-        this.state = {
-            time: 0
+            case GameModes.presentWord:
+                clock = window.setInterval(onInterval, 1000);
+                break;
+
+            case GameModes.getReady:
+                setTime(props.time);
+
+            default:
+                clearInterval(clock);
         }
-    }
 
-    render() {
-        const minutes: number =  ~~(this.state.time / 60);
-        const seconds: number = this.state.time - (minutes * 60);
-
-        return (
-            <div className="timer">
-                {
-                    minutes > 0 ? `${minutes}:${seconds}` : seconds
-                }
-            </div>
-        )
-    }
-
-    componentDidMount = () => {
-        this.props.setMode(this.setMode);
-    }
-
-    private setMode = (mode: Modes, time:number = -1): number => {
-        clearInterval(this.clock);
-
-        switch(mode) {
-            case Modes.start:
-                this.startClock();
-                break;
-
-            case Modes.pause:
-                break;
-
-            case Modes.reset:
-                this.setState({time: this.props.time})
-                break;
-
-            case Modes.restart:
-                this.startClock(this.props.time);
-                break;
+        return() => {
+            clearInterval(clock);
         }
-        return this.state.time;
+    }, [props.mode])
+
+
+    const onInterval = () => {
+        const t: number = countRef.current - 1;
+        setTime(t);
+        props.timeRemaining(t);
+
+        if (t === 0)
+            clearInterval(clock);
     }
 
-    private onInterval = () => {
-        this.setState({time: this.state.time - 1});
+    const minutes: number =  ~~(time / 60);
+    const seconds: number = time - (minutes * 60);
 
-        if (this.state.time === 0) {
-            clearInterval(this.clock);
-            this.props.onExpired();
-        }
-    }
-
-    private startClock = (time: number = this.state.time) => {
-        this.setState({time: time});
-        this.clock = window.setInterval(this.onInterval, 1000);
-    }
+    return (
+        <div className="timer">
+            {
+                minutes > 0 ? `${minutes}:${seconds}` : seconds
+            }
+        </div>
+    )
 }

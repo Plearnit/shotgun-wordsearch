@@ -16,44 +16,7 @@ code {
   margin-bottom: 10px;
 }
 
-#grid {
-  border: 2px solid rgba(0, 0, 0, 1);
-  display: inline-block;
-}
 
-.grid-row {
-  clear: both;
-}
-
-.cell {
-  float: left;
-  width: 35px;
-  height: 35px;
-  text-align: center;
-  font-size: 1.3em;
-  font-weight: bold;
-  border-radius: 10px;
-  border: 2px solid white;
-  -webkit-user-select: none; /* Safari */        
-  -moz-user-select: none; /* Firefox */
-  -ms-user-select: none; /* IE10+/Edge */
-  user-select: none; /* Standard */
-}
-
-.selectable-cell:hover {
-  cursor: pointer;
-  border: 2px solid rgba(37, 143, 55, 0.5);
-}
-
-.selected-cell {
-  background-color: rgba(37, 143, 55, 0.5);
-  color: rgba(255, 255, 255, .8);
-}
-
-.revealed-cell {
-  background-color: rgba(153, 11, 11, 0.8);
-  color: rgba(255, 255, 255, .8);
-}
 
 #score-board {
   font-weight: bold;

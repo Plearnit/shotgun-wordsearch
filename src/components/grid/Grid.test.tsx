@@ -1,136 +1,79 @@
 import React from 'react';
-import {shallow, configure, mount} from 'enzyme';
+import {act} from 'react-dom/test-utils';
+import {configure, mount} from 'enzyme';
 import Adapter from 'enzyme-adapter-react-16';
-
-import Grid, { Point, WordDirections } from './Grid';
-import GameModeUpdate, { GameModes } from '../../GameModes'
+import {buildGridMap, Grid, Point, WordDirections} from "./Grid";
+import {GameModes} from '../../constants';
 
 configure({adapter: new Adapter()});
 
 describe('Grid tests', () => {
     let component: any;
     let word: string;
-    let map: Array<string[]>;
     let size: number = 15;
-    let onWordFound = (): void => { console.log("found")}
-    let updateGridMode: any;
 
     describe('Grid map building', () => {
 
         beforeAll(() => {
             word = "abcd";
-            component = shallow(<Grid size = {size} onWordFound={onWordFound} updateMode={click => updateGridMode = click} />);
+            component = mount(
+                <Grid
+                    mode={GameModes.presentWord}
+                    word={word}
+                    wordFound={() => {}}
+                    size={size}
+                    allowedDirections={[WordDirections.E, WordDirections.SE, WordDirections.S]}
+                    />
+            );
+
+            act(() => {
+                component.update();
+            })
         });
 
         it('should build the correct size grid', () => {
-            map = component.instance().buildGridMap(word, WordDirections.E, size);
-            expect(map.length).toEqual(size);
-            expect(map[0]).not.toBe(null);
-            expect(map[0].length).toEqual(size);
+            expect(component.find('.selectable_cell').length).toEqual(size * size);
         });
 
         it('Should add horizontally', () => {
             word = "horizontal";
-            map = component.instance().buildGridMap(word, WordDirections.E, size);
-            expect(findWordInMap(word, map).direction).toEqual(WordDirections.E);
+            let gridMap = buildGridMap(word, WordDirections.E, size);
+            expect(findWordInMap(word, gridMap.map).direction).toEqual(WordDirections.E);
         });
         
         it('should render max len word horizontally', () => {
             word = "abcdefueodlvued";
-            map = component.instance().buildGridMap(word, WordDirections.E, size);
-            expect(findWordInMap(word, map).direction).toEqual(WordDirections.E);
+            let gridMap = buildGridMap(word, WordDirections.E, size);
+            expect(findWordInMap(word, gridMap.map).direction).toEqual(WordDirections.E);
         });
 
         it('should add diagonally', () => {
             word="diagonal";
-            map = component.instance().buildGridMap(word, WordDirections.SE, size);
-            expect (findWordInMap(word, map).direction).toEqual(WordDirections.SE);
+            let gridMap = buildGridMap(word, WordDirections.SE, size);
+            expect(findWordInMap(word, gridMap.map).direction).toEqual(WordDirections.SE);
         });
 
         it('should render max len word diagonally', () => {
             word="idkeifjrodmjeus";
-            map = component.instance().buildGridMap(word, WordDirections.SE, size);
-            expect (findWordInMap(word, map).direction).toEqual(WordDirections.SE);
+            let gridMap = buildGridMap(word, WordDirections.SE, size);
+            expect(findWordInMap(word, gridMap.map).direction).toEqual(WordDirections.SE);
         }); 
 
         it('should add vertically', () => {
             word="vertical";
-            map = component.instance().buildGridMap(word, WordDirections.S, size);
-            expect (findWordInMap(word, map).direction).toEqual(WordDirections.S);
+            let gridMap = buildGridMap(word, WordDirections.S, size);
+            expect(findWordInMap(word, gridMap.map).direction).toEqual(WordDirections.S);
         });
 
         it('should render max len word diagonally', () => {
             word="idkeifjrodmjeus";
-            map = component.instance().buildGridMap(word, WordDirections.S, size);
-            expect (findWordInMap(word, map).direction).toEqual(WordDirections.S);
+            let gridMap = buildGridMap(word, WordDirections.S, size);
+            expect(findWordInMap(word, gridMap.map).direction).toEqual(WordDirections.S);
         });
         
     });
 
-    describe('word selection tests', () => {
-
-        beforeAll(() => {
-            word = "abcd";
-            component = mount(<Grid size={size} onWordFound={onWordFound} updateMode={click => updateGridMode = click} />);
-        });
-
-        it('should respond if word is incorrect', () => {
-            let selectedCells: Point[] = component.instance().extractSelectedCells(new Point(0,0), new Point(10,0));
-            expect(compareSelectedWordToTargetWord(word, selectedCells, component.instance().map)).toEqual(false);
-        });
-
-        it('should respond if word is correct', () => {
-            updateGridMode(new GameModeUpdate(GameModes.presentWord, word));
-            let wordLocation: FindWordInMapResponse = findWordInMap(word, component.instance().map);
-            //console.log(wordLocation, component.instance().map);
-            let selectedCells: Point[] = component.instance().extractSelectedCells(wordLocation.start, wordLocation.end);
-            expect(compareSelectedWordToTargetWord(word, selectedCells, component.instance().map)).toEqual(true);
-        });
-
-        it('should light up first letter clicked', () => {
-            component = mount(<Grid size = {size} onWordFound={onWordFound} updateMode={click => updateGridMode = click}/>); 
-            component.instance().onCellClicked(new Point(5,5));
-            //console.log(component.find("#cell_0:0").first());
-        });
-
-        it('should light up selected word', () => {
-            throw new Error();
-            /*
-            let wordLocation: FindWordInMapResponse = findWordInMap(word, map);
-            component.instance().onLetterClicked(wordLocation.start);
-            component.instance().onLetterClicked(wordLocation.end);
-
-            let difference: Point = new Point(0,0);
-            let valid: boolean = true;
-            while ((wordLocation.start.y + difference.y < wordLocation.end.y ||
-                    wordLocation.start.x + difference.x < wordLocation.end.x) &&
-                    valid) {
-                        //valid = component.find(`#cell_${wordLocation.start.y + difference.y}:${wordLocation.start.x + difference.x}`);
-                        switch(wordLocation.direction) {
-                            case WordDirections.E:
-                                difference.x ++;
-                                break;
-                            case WordDirections.SE:
-                                difference.x ++;
-                                difference.y ++;
-                                break;
-                            case WordDirections.S:
-                                difference.y ++;
-                                break;
-                        } 
-            }
-
-            expect(valid).toEqual(true);
-            */
-        });
-    }) 
 })
-
-const compareSelectedWordToTargetWord = (targetWord: string, selectedCells: Point[], map: Array<string[]>): boolean => {    
-    let selectedWord: string = "";
-    selectedCells.forEach((cell: Point) => selectedWord += map[cell.y][cell.x]);
-    return selectedWord === targetWord.toUpperCase();
-}
 
 const findWordInMap = (word: string, map: Array<string[]>): FindWordInMapResponse => {
     word = word.toUpperCase();

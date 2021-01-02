@@ -1,23 +1,16 @@
-import React from 'react';
+import React, {useState} from 'react';
 import UIfx from 'uifx';
+import {GameModes} from "../../constants";
+import './grid.scss';
 
-import GameModeUpdate, { GameModes } from '../../GameModes'
-
-const bellAudio = require("../../assets/correctBell.mp3");
 const buzzAudio = require("../../assets/wrong1.mp3");
 
-interface IProps {
-    size: number,
-    onWordFound(): void,
-    updateMode(click: any): void
-}
-
-interface IState {
-    selectedCellStartPoint: Point,
-    highlightedCells: Point[],
-    word: string,
+interface Props {
     mode: GameModes,
-    map: Array<string[]>
+    word: string,
+    wordFound: () => void,
+    size: number,
+    allowedDirections: WordDirections[]
 }
 
 export enum WordDirections {
@@ -32,184 +25,71 @@ export enum WordDirections {
     noDirection
 }
 
-export default class Grid extends React.Component<IProps, IState> {
+export const Grid = (props: Props): React.ReactElement => {
 
-    private wordLocation: {start: Point, end:Point} = {start: new Point(), end: new Point()};
-    private bell: UIfx = new UIfx(bellAudio);
-    private buzz: UIfx = new UIfx(buzzAudio);
-    private allowedDirections: WordDirections[] = [WordDirections.E, WordDirections.SE, WordDirections.S];
+    const buzz: UIfx = new UIfx(buzzAudio);
 
-    constructor(props: IProps) {
-        super(props);
+    const direction: WordDirections = props.allowedDirections[Math.floor(Math.random() * props.allowedDirections.length)];
 
-        this.state = {
-            selectedCellStartPoint: new Point(),
-            highlightedCells: [],
-            word: "",
-            mode: GameModes.idle,
-            map: []
-        }
-    }
+    const [gridMap, setGridMap] = useState<BuildGridMap>({map: [], wordLocation: {start: new Point(), end: new Point()}});
+    const [selectedCellStartPoint, setSelectedCellStartPoint] = useState(new Point());
+    const [highlightedCells, updateHighlightedCells] = useState<Point[]>([]);
+    const [invalidWord, setInvalidWord] = useState(false);
 
-    render() {
-        let cellMode: string;
-
-        return(
-            <div className="booger" id="grid">
-                { 
-                    this.state.map.map( (row: string[], y: number) => {
-                        return(
-                            <div className="grid-row" key={`row_${y}`}>{
-                                row.map((letter: string, x: number) => {
-                                    let point: Point = new Point(y, x);
-                                    cellMode = "";
-
-                                    if (this.state.mode === GameModes.presentWord) {
-                                        cellMode = "selectable-cell";
-
-                                        if ((this.state.selectedCellStartPoint.x === point.x && this.state.selectedCellStartPoint.y === point.y)) {
-                                            cellMode = "selected-cell";
-                                        }
-                                        this.state.highlightedCells.forEach((cell: Point) => {
-                                            if (cell.y === y && cell.x === x) cellMode = "selected-cell";
-                                        });
-                                    } else if (this.state.mode === GameModes.reveal) {
-                                        if ((this.state.selectedCellStartPoint.x === point.x && this.state.selectedCellStartPoint.y === point.y)) {
-                                            cellMode = "revealed-cell";
-                                        }
-                                        this.state.highlightedCells.forEach((cell: Point) => {
-                                            if (cell.y === y && cell.x === x) cellMode = "revealed-cell";
-                                        });
-                                    }
-
-                                    return(
-                                        <div 
-                                            id={`cell_${y}:${x}`}
-                                            className={`cell ${cellMode}`}
-                                            key={`letter_${x}`}
-                                            onClick={() => this.onCellClicked(point)}
-                                            >{letter}</div>
-                                    )
-                                })
-                            }</div>
-                        )
-                    })
-                } 
-            </div>
-        )
-    }
-
-    componentDidMount = () => {
-        this.props.updateMode(this.updateMode);
-        this.buildGridMap();
-    }
-
-
-    private updateMode = (modeUpdate: GameModeUpdate): void => {
-        switch(modeUpdate.mode) {
+    React.useEffect(() => {
+        switch(props.mode) {
             case GameModes.idle :
+                setGridMap(buildGridMap('', direction, props.size));
                 break;
 
             case GameModes.presentWord:
-                this.setState({
-                    mode: modeUpdate.mode,
-                    word: modeUpdate.payload.word,
-                    highlightedCells: [],
-                    selectedCellStartPoint: new Point()
-                });
-                this.buildGridMap();
+                //setMode(modeUpdate.mode);
+                //setWord(modeUpdate.payload.word);
+                updateHighlightedCells([]);
+                setSelectedCellStartPoint(new Point());
+                setGridMap(buildGridMap(props.word, direction, props.size));
                 break;
 
             case GameModes.pause:
                 break;
 
             case GameModes.reveal:
-                this.revealWord();
+                console.log('rev')
+                revealWord();
                 break;
 
             case GameModes.getReady:
-                this.setState({
-                    mode: GameModes.getReady,
-                    word: ""
-                }, this.buildGridMap);
+                //setMode(GameModes.getReady);
+                //setWord('');
                 break;
-        } 
+        }
+    }, [props.mode])
+
+    const clearSelectedCells = (): void => {
+        setSelectedCellStartPoint(new Point());
+        updateHighlightedCells([]);
+        setInvalidWord(false);
     }
 
-    private revealWord = (): void => {console.log("reveal")
-        let direction: WordDirections = this.wordLocation.start.getDirectionToward(this.wordLocation.end);
-        let revealCells: Point[] = [];
-        
-        while (this.wordLocation.start.y !== this.wordLocation.end.y || this.wordLocation.start.x !== this.wordLocation.end.x) {
-            revealCells.push(new Point(this.wordLocation.start.y, this.wordLocation.start.x));
-            this.wordLocation.start.incrementToward(direction);
-        }
-
-        this.setState({
-            mode: GameModes.reveal,
-            highlightedCells: revealCells
-        });
-
-        this.buzz.play();
-    }
-
-    private onCellClicked = (point: Point):void => {
-        if (this.state.mode !== GameModes.presentWord) return;
-        
-        if (this.state.selectedCellStartPoint.x === -1) {
-            this.setState({
-                selectedCellStartPoint: point,
-                highlightedCells: []
-            });
-            return;
-        } else if (this.state.selectedCellStartPoint.x === point.x && this.state.selectedCellStartPoint.y === point.y) {
-            return;
-        } else if (this.state.selectedCellStartPoint.getDirectionToward(point) === WordDirections.noDirection) {
-            this.buzz.play();
-            this.clearSelectedCells();
-        }
-
-        let selectedPoints: Point[] = this.extractSelectedCells(this.state.selectedCellStartPoint, point);
-        this.setState({highlightedCells: selectedPoints});
-
-        let selectedWord: string = "";
-        selectedPoints.forEach((point: Point) => selectedWord += this.state.map[point.y][point.x])
-        console.log(this.state)
-        if (selectedWord === this.state.word.toUpperCase()) {
-            this.bell.play();
-            this.props.onWordFound();
-        } else {
-            this.buzz.play();
-            window.setTimeout(this.clearSelectedCells, 1000);
-        }
-    };
-
-    private clearSelectedCells = (): void => {
-        this.setState({
-            selectedCellStartPoint: new Point(),
-            highlightedCells: []
-        });
-    }
-
-    private extractSelectedCells = (start: Point, end: Point): Point[] => {
+    const extractSelectedCells = (start: Point, end: Point): Point[] => {
         let selectedLetters: Point[] = [];
         let direction: WordDirections = start.getDirectionToward(end);
         if (direction === WordDirections.noDirection) return [];
-        
+
         let difference: Point = new Point(0, 0);
 
         while (start.y + difference.y !== end.y || start.x + difference.x !== end.x) {
             selectedLetters.push(new Point(start.y + difference.y, start.x + difference.x));
             switch(direction) {
-                case WordDirections.E: 
+                case WordDirections.E:
                     difference.x ++;
                     break;
                 case WordDirections.SE:
-                    difference.y ++; 
+                    difference.y ++;
                     difference.x ++;
                     break;
                 case WordDirections.S:
-                    difference.y ++; 
+                    difference.y ++;
                     break;
             }
         }
@@ -217,65 +97,147 @@ export default class Grid extends React.Component<IProps, IState> {
         return selectedLetters;
     }
 
-    private buildGridMap = (direction?: WordDirections): void => {
-        direction = direction? direction : this.allowedDirections[Math.floor(Math.random() * this.allowedDirections.length)];
+    const onCellClicked = (point: Point):void => {
+        if (props.mode !== GameModes.presentWord) return;
 
-        let displayLetters: boolean = this.state.mode === GameModes.reveal || this.state.mode === GameModes.presentWord ? true : false;
+        if (selectedCellStartPoint.x === -1) {
+            updateHighlightedCells([]);
+            setSelectedCellStartPoint(point);
+            return;
 
-        let map: Array<string[]> = [];
-        let row: Array<string>;
-        let startX: number = Math.floor(Math.random() * Math.floor(this.props.size));
-        let startY: number = Math.floor(Math.random() * Math.floor(this.props.size));
-        let moveX: number = 0;
-        let moveY: number = 0;
-        
-        // prefill map with random letters
-        for (let y = 0; y < this.props.size; y ++) {
-            row = [];
-            for (let x = 0; x < this.props.size; x ++) {
-                if (displayLetters) {
-                    row.push(String.fromCharCode(Math.floor(Math.random() * 26) + 65));
-                    //row.push(".");
-                } else {
-                    row.push("");
-                }
-            }
-            map.push(row);
-        } 
-
-        if (displayLetters){
-            //find a starting point for the word.
-            switch(direction) {
-                case WordDirections.E:
-                    startX = Math.floor(Math.random() * Math.floor(this.props.size - this.state.word.length));
-                    moveX = 1;
-                break;
-                case WordDirections.SE:
-                    startX = Math.floor(Math.random() * Math.floor(this.props.size - this.state.word.length));
-                    startY = Math.floor(Math.random() * Math.floor(this.props.size - this.state.word.length));
-                    moveX = moveY = 1;
-                break;
-                case WordDirections.S:
-                    startY = Math.floor(Math.random() * Math.floor(this.props.size - this.state.word.length));
-                    moveY = 1;
-                break;
-            }
-
-            this.wordLocation.start = new Point(startY, startX);
-
-            // write the word.
-            for(let y = 0 ; y < this.state.word.length; y ++ ){
-                map[startY][startX] = this.state.word.charAt(y).toUpperCase();
-                startX += moveX;
-                startY += moveY;
-            }
-
-            this.wordLocation.end = new Point(startY, startX);
+        } else if (selectedCellStartPoint.x === point.x && selectedCellStartPoint.y === point.y) {
+            return;
+        } else if (selectedCellStartPoint.getDirectionToward(point) === WordDirections.noDirection) {
+            //buzz.play();
+            clearSelectedCells();
         }
-    
-        this.setState({map});
+
+        let selectedPoints: Point[] = extractSelectedCells(selectedCellStartPoint, point);
+        updateHighlightedCells(selectedPoints);
+
+        let selectedWord: string = "";
+        selectedPoints.forEach((point: Point) => selectedWord += gridMap.map[point.y][point.x])
+
+        if (selectedWord === props.word.toUpperCase()) {
+            props.wordFound();
+        } else {
+            setInvalidWord(true);
+            buzz.play(1);
+            window.setTimeout(clearSelectedCells, 1000);
+        }
+    };
+
+    const revealWord = (): void => {console.log("reveal")
+        let direction: WordDirections = gridMap.wordLocation.start.getDirectionToward(gridMap.wordLocation.end);
+        let revealCells: Point[] = [];
+
+        while (gridMap.wordLocation.start.y !== gridMap.wordLocation.end.y || gridMap.wordLocation.start.x !== gridMap.wordLocation.end.x) {
+            revealCells.push(new Point(gridMap.wordLocation.start.y, gridMap.wordLocation.start.x));
+            gridMap.wordLocation.start.incrementToward(direction);
+        }
+        updateHighlightedCells(revealCells);
     }
+
+    let cellMode: string;
+
+    return(
+        <div id="grid">
+            {
+                gridMap.map.map( (row: string[], y: number) => {
+                    return(
+                        <div className="grid-row" key={`row_${y}`}>{
+                            row.map((letter: string, x: number) => {
+                                let point: Point = new Point(y, x);
+                                cellMode = "";
+
+                                if ((props.mode === GameModes.presentWord || props.mode === GameModes.showCorrectWord) && !invalidWord) {
+                                    cellMode = "selectable_cell";
+
+                                    if ((selectedCellStartPoint.x === point.x && selectedCellStartPoint.y === point.y)) {
+                                        cellMode = "selected-cell";
+                                    }
+                                    highlightedCells.forEach((cell: Point) => {
+                                        if (cell.y === y && cell.x === x) cellMode = "selected-cell";
+                                    });
+                                } else if (props.mode === GameModes.reveal || invalidWord) {
+                                    if ((selectedCellStartPoint.x === point.x && selectedCellStartPoint.y === point.y)) {
+                                        cellMode = "revealed-cell";
+                                    }
+                                    highlightedCells.forEach((cell: Point) => {
+                                        if (cell.y === y && cell.x === x) cellMode = "revealed-cell";
+                                    });
+                                }
+
+                                return(
+                                    <div
+                                        id={`cell_${y}:${x}`}
+                                        className={`cell ${cellMode}`}
+                                        key={`letter_${x}`}
+                                        onClick={() => onCellClicked(point)}
+                                        >{letter}</div>
+                                )
+                            })
+                        }</div>
+                    )
+                })
+            }
+        </div>
+    )
 }
+
+type BuildGridMap = {
+    map: Array<string[]>,
+    wordLocation: {start: Point, end: Point}
+}
+
+export const buildGridMap = (word: string, direction: WordDirections, gridSize: number): BuildGridMap => {
+
+    let map: Array<string[]> = [];
+    let row: Array<string>;
+    let startX: number = Math.floor(Math.random() * Math.floor(gridSize));
+    let startY: number = Math.floor(Math.random() * Math.floor(gridSize));
+    let moveX: number = 0;
+    let moveY: number = 0;
+    let wordLocation: {start: Point, end:Point} = {start: new Point(), end: new Point()};
+
+    // prefill map with random letters
+    for (let y = 0; y < gridSize; y ++) {
+        row = [];
+        for (let x = 0; x < gridSize; x ++)
+            row.push(String.fromCharCode(Math.floor(Math.random() * 26) + 65));
+
+        map.push(row);
+    }
+
+    switch(direction) {
+        case WordDirections.E:
+            startX = Math.floor(Math.random() * Math.floor(gridSize - word.length));
+            moveX = 1;
+        break;
+        case WordDirections.SE:
+            startX = Math.floor(Math.random() * Math.floor(gridSize - word.length));
+            startY = Math.floor(Math.random() * Math.floor(gridSize - word.length));
+            moveX = moveY = 1;
+        break;
+        case WordDirections.S:
+            startY = Math.floor(Math.random() * Math.floor(gridSize - word.length));
+            moveY = 1;
+        break;
+    }
+
+    wordLocation.start = new Point(startY, startX);
+
+    // write the word.
+    for(let y = 0 ; y < word.length; y ++ ){
+        map[startY][startX] = word.charAt(y).toUpperCase();
+        startX += moveX;
+        startY += moveY;
+    }
+
+    wordLocation.end = new Point(startY, startX);
+    return ({map, wordLocation});
+}
+
 
 export class Point {
 
