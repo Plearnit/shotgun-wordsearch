@@ -1,17 +1,18 @@
 import React from 'react';
 import UIfx from 'uifx';
-import PlearnitService, {PlearnitEvents} from '../plearnit_service/PlearnitService';
+import PlearnitService, {PlearnitEvents} from '../../plearnit_service/PlearnitService';
 
-import {Grid} from './grid/Grid';
-import {Timer} from './widgets/timer/Timer';
-import {GameModes} from '../constants';
-import VocabEntry from "../plearnit_service/models/VocabEntry";
-import RoundQuestion from "../plearnit_service/models/RoundQuestion";
-import {WordDirections} from "./grid/OldGrid";
-import Player from "../plearnit_service/models/Player";
+import {Grid, WordDirections} from '../grid/Grid';
+import {Timer} from '../widgets/timer/Timer';
+import {GameModes} from '../../constants';
+import VocabEntry from "../../plearnit_service/models/VocabEntry";
+import RoundQuestion from "../../plearnit_service/models/RoundQuestion";
+import Player from "../../plearnit_service/models/Player";
 
-const bellAudio = require("../assets/correctBell.mp3");
-const buzzAudio = require("../assets/wrong1.mp3");
+import './main_app.scss';
+
+const bellAudio = require("../../assets/correctBell.mp3");
+const buzzAudio = require("../../assets/wrong1.mp3");
 
 interface State {
     mode: GameModes,
@@ -160,7 +161,7 @@ export default class MainApp extends React.Component<any, State> {
                                 mode={this.state.mode}
                                 word={this.state.vocabEntry.response_text}
                                 wordFound={this.onWordFound}
-                                size={10}
+                                size={12}
                                 allowedDirections={[WordDirections.E, WordDirections.SE, WordDirections.S]}
                                 />
                         </div>

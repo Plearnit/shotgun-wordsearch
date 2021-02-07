@@ -8,6 +8,7 @@ export enum GameModes {
     showCorrectWord
 }
 
-export default class GameModeUpdate {
-    constructor(public mode: GameModes, public payload?: any) { }
+export enum GameStages {
+    instructions,
+    playing
 }

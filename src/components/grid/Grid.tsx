@@ -141,37 +141,37 @@ export const Grid = (props: Props): React.ReactElement => {
     let cellMode: string;
 
     return(
-        <div id="grid">
+        <div className="grid">
             {
                 gridMap.map.map( (row: string[], y: number) => {
                     return(
-                        <div className="grid-row" key={`row_${y}`}>{
+                        <div className="grid__row" key={`row_${y}`}>{
                             row.map((letter: string, x: number) => {
                                 let point: Point = new Point(y, x);
                                 cellMode = "";
 
                                 if ((props.mode === GameModes.presentWord || props.mode === GameModes.showCorrectWord) && !invalidWord) {
-                                    cellMode = "selectable_cell";
+                                    cellMode = "grid__selectable_cell";
 
                                     if ((selectedCellStartPoint.x === point.x && selectedCellStartPoint.y === point.y)) {
-                                        cellMode = "selected-cell";
+                                        cellMode = "grid__selected_cell";
                                     }
                                     highlightedCells.forEach((cell: Point) => {
-                                        if (cell.y === y && cell.x === x) cellMode = "selected-cell";
+                                        if (cell.y === y && cell.x === x) cellMode = "grid__selected_cell";
                                     });
                                 } else if (props.mode === GameModes.reveal || invalidWord) {
                                     if ((selectedCellStartPoint.x === point.x && selectedCellStartPoint.y === point.y)) {
-                                        cellMode = "revealed-cell";
+                                        cellMode = "grid__revealed_cell";
                                     }
                                     highlightedCells.forEach((cell: Point) => {
-                                        if (cell.y === y && cell.x === x) cellMode = "revealed-cell";
+                                        if (cell.y === y && cell.x === x) cellMode = "grid__revealed_cell";
                                     });
                                 }
 
                                 return(
                                     <div
                                         id={`cell_${y}:${x}`}
-                                        className={`cell ${cellMode}`}
+                                        className={`grid__cell ${cellMode}`}
                                         key={`letter_${x}`}
                                         onClick={() => onCellClicked(point)}
                                         >{letter}</div>

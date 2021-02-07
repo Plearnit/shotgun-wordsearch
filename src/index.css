@@ -18,16 +18,7 @@ code {
 
 
 
-#score-board {
-  font-weight: bold;
-  text-align: center;
-  font-size: 1.6em;
-}
 
-#score {
-  background-color: rgba(37, 143, 55, 0.5);
-  color: rgba(255, 255, 255, .8);
-}
 
 #timer {
   background-color: rgba(37, 143, 55, 0.3);
